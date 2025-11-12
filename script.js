@@ -1,420 +1,454 @@
-// Variabel global
-let scene, camera, renderer, heart, controls;
-let isPaused = false;
-let colorIndex = 0;
-let smallHearts = [];
-const pinkColors = [
-    0xff69b4, // Hot Pink
-    0xff1493, // Deep Pink
-    0xffc0cb, // Light Pink
-    0xffb6c1, // Light Pink 2
-    0xff00ff, // Magenta
-    0xda70d6  // Orchid
-];
-
-// Inisialisasi Three.js
-function init() {
-    // Buat scene
-    scene = new THREE.Scene();
-    
-    // Buat kamera
-    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.z = 5;
-    
-    // Buat renderer
-    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setClearColor(0x000000, 0); // Transparent background
-    document.getElementById('container').appendChild(renderer.domElement);
-    
-    // Tambahkan lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-    scene.add(ambientLight);
-    
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight.position.set(1, 1, 1);
-    scene.add(directionalLight);
-    
-    const pointLight = new THREE.PointLight(0xffffff, 0.5);
-    pointLight.position.set(-1, -1, 2);
-    scene.add(pointLight);
-    
-    // Buat bentuk love
-    createHeart();
-    
-    // Buat love-love kecil yang mengitari
-    createSmallHearts();
-    
-    // Tambahkan event listeners
-    window.addEventListener('resize', onWindowResize);
-    document.addEventListener('mousemove', onMouseMove);
-    document.addEventListener('wheel', onMouseWheel);
-    
-    // Touch events untuk mobile
-    document.addEventListener('touchstart', onTouchStart, { passive: false });
-    document.addEventListener('touchmove', onTouchMove, { passive: false });
-    document.addEventListener('touchend', onTouchEnd);
-    
-    // Tambahkan kontrol tombol
-    document.getElementById('pauseBtn').addEventListener('click', togglePause);
-    document.getElementById('resetBtn').addEventListener('click', resetPosition);
-    document.getElementById('colorBtn').addEventListener('click', changeColor);
-    
-    // Mulai animasi
-    animate();
-}
-
-// Fungsi untuk membuat bentuk love 3D
-function createHeart() {
-    // Buat geometri love menggunakan parametric equation
-    const heartShape = new THREE.Shape();
-    const x = 0, y = 0;
-    heartShape.moveTo(x + 0.5, y + 0.5);
-    heartShape.bezierCurveTo(x + 0.5, y + 0.5, x + 0.4, y, x, y);
-    heartShape.bezierCurveTo(x - 0.6, y, x - 0.6, y + 0.7, x - 0.6, y + 0.7);
-    heartShape.bezierCurveTo(x - 0.6, y + 1.1, x - 0.3, y + 1.54, x + 0.5, y + 1.9);
-    heartShape.bezierCurveTo(x + 1.2, y + 1.54, x + 1.6, y + 1.1, x + 1.6, y + 0.7);
-    heartShape.bezierCurveTo(x + 1.6, y + 0.7, x + 1.6, y, x + 1, y);
-    heartShape.bezierCurveTo(x + 0.7, y, x + 0.5, y + 0.5, x + 0.5, y + 0.5);
-    
-    // Extrude shape untuk membuat 3D
-    const extrudeSettings = {
-        depth: 0.8,
-        bevelEnabled: true,
-        bevelSegments: 2,
-        steps: 2,
-        bevelSize: 0.1,
-        bevelThickness: 0.1
-    };
-    
-    const geometry = new THREE.ExtrudeGeometry(heartShape, extrudeSettings);
-    
-    // Buat material dengan warna pink dan efek glossy
-    const material = new THREE.MeshPhongMaterial({
-        color: pinkColors[colorIndex],
-        specular: 0xffffff,
-        shininess: 100,
-        emissive: pinkColors[colorIndex],
-        emissiveIntensity: 0.2
-    });
-    
-    // Buat mesh
-    heart = new THREE.Mesh(geometry, material);
-    
-    // Posisikan di tengah dengan rotasi yang benar
-    heart.position.set(0, 0, 0);
-    heart.rotation.x = Math.PI; // Putar 180 derajat untuk memperbaiki posisi
-    
-    // Tambahkan ke scene
-    scene.add(heart);
-    
-    // Tambahkan partikel efek
-    createParticles();
-}
-
-// Fungsi untuk membuat partikel efek
-function createParticles() {
-    const particlesGeometry = new THREE.BufferGeometry();
-    const particlesCount = 500;
-    const posArray = new Float32Array(particlesCount * 3);
-    
-    for (let i = 0; i < particlesCount * 3; i++) {
-        posArray[i] = (Math.random() - 0.5) * 10;
+// Modern Love Message Application
+class ModernLoveMessage {
+    constructor() {
+        this.letters = [];
+        this.highestZ = 10;
+        this.currentTheme = 'default';
+        this.themes = ['default', 'dark-theme', 'ocean-theme', 'forest-theme'];
+        this.envelopeOpened = false;
+        this.currentLetterIndex = 0;
+        this.totalLetters = 5;
+        this.init();
     }
-    
-    particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-    
-    const particlesMaterial = new THREE.PointsMaterial({
-        size: 0.05,
-        color: pinkColors[colorIndex],
-        transparent: true,
-        opacity: 0.8,
-        blending: THREE.AdditiveBlending
-    });
-    
-    const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
-    scene.add(particlesMesh);
-    
-    // Simpan referensi untuk animasi
-    heart.particles = particlesMesh;
+
+    init() {
+        this.setupEventListeners();
+        this.setupVanillaTilt();
+    }
+
+    setupEventListeners() {
+        // Envelope click event
+        const envelope = document.getElementById('envelope');
+        envelope.addEventListener('click', () => {
+            this.openEnvelope();
+        });
+
+        // Navigation buttons
+        document.getElementById('prevBtn').addEventListener('click', () => {
+            this.previousLetter();
+        });
+
+        document.getElementById('nextBtn').addEventListener('click', () => {
+            this.nextLetter();
+        });
+
+        // Touch events for swipe
+        const lettersContainer = document.getElementById('lettersContainer');
+        lettersContainer.addEventListener('touchstart', (e) => {
+            this.handleTouchStart(e);
+        }, { passive: true });
+
+        lettersContainer.addEventListener('touchend', (e) => {
+            this.handleTouchEnd(e);
+        }, { passive: true });
+
+        // Mouse events for swipe
+        lettersContainer.addEventListener('mousedown', (e) => {
+            this.handleMouseDown(e);
+        });
+
+        lettersContainer.addEventListener('mouseup', (e) => {
+            this.handleMouseUp(e);
+        });
+
+
+        // Theme button
+        document.getElementById('themeBtn').addEventListener('click', () => {
+            this.changeTheme();
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') {
+                this.previousLetter();
+            } else if (e.key === 'ArrowRight') {
+                this.nextLetter();
+            } else if (e.key === 't' && e.ctrlKey) {
+                e.preventDefault();
+                this.changeTheme();
+            }
+        });
+    }
+
+    setupVanillaTilt() {
+        VanillaTilt.init(document.querySelectorAll("[data-tilt]"), {
+            max: 15,
+            speed: 400,
+            glare: true,
+            "max-glare": 0.2
+        });
+    }
+
+    openEnvelope() {
+        if (this.envelopeOpened) return;
+        
+        this.envelopeOpened = true;
+        const envelope = document.getElementById('envelope');
+        const envelopeContainer = document.getElementById('envelopeContainer');
+        const lettersContainer = document.getElementById('lettersContainer');
+        
+        // Add open class to envelope
+        envelope.classList.add('open');
+        
+        // Hide envelope after animation
+        setTimeout(() => {
+            envelopeContainer.style.display = 'none';
+            lettersContainer.classList.add('show');
+            
+            // Initialize letters after envelope opens
+            this.setupLetters();
+            this.setGreetingBasedOnTime();
+            this.showLetter(0);
+            this.createIndicators();
+            this.updateNavigationButtons();
+        }, 800);
+    }
+
+    setupLetters() {
+        const lettersElements = document.querySelectorAll('.letter');
+        lettersElements.forEach((letter, index) => {
+            this.letters.push(new Letter(letter, this.highestZ - index));
+        });
+    }
+
+    showLetter(index) {
+        // Hide all letters
+        this.letters.forEach((letter, i) => {
+            letter.element.classList.remove('active', 'prev');
+            if (i < index) {
+                letter.element.classList.add('prev');
+            }
+        });
+
+        // Show current letter
+        if (this.letters[index]) {
+            this.letters[index].element.classList.add('active');
+        }
+
+        // Update indicators
+        this.updateIndicators();
+    }
+
+    nextLetter() {
+        if (this.currentLetterIndex < this.totalLetters - 1) {
+            this.currentLetterIndex++;
+            this.showLetter(this.currentLetterIndex);
+            this.updateNavigationButtons();
+        }
+    }
+
+    previousLetter() {
+        if (this.currentLetterIndex > 0) {
+            this.currentLetterIndex--;
+            this.showLetter(this.currentLetterIndex);
+            this.updateNavigationButtons();
+        }
+    }
+
+    createIndicators() {
+        const indicatorsContainer = document.getElementById('letterIndicators');
+        for (let i = 0; i < this.totalLetters; i++) {
+            const indicator = document.createElement('div');
+            indicator.className = 'indicator';
+            if (i === 0) indicator.classList.add('active');
+            indicatorsContainer.appendChild(indicator);
+        }
+    }
+
+    setGreetingBasedOnTime() {
+        const greetingElement = document.getElementById('greetingMessage');
+        const hour = new Date().getHours();
+        let greeting = '';
+        
+        if (hour >= 5 && hour < 12) {
+            greeting = 'Haii, Selamat Pagi nona muda 😊';
+        } else if (hour >= 12 && hour < 15) {
+            greeting = 'Haii, Selamat Siang nona muda 😊';
+        } else if (hour >= 15 && hour < 18) {
+            greeting = 'Haii, Selamat Sore nona muda 😊';
+        } else {
+            greeting = 'Haii, Selamat Malam nona muda 😊';
+        }
+        
+        greetingElement.textContent = greeting;
+    }
+
+    updateIndicators() {
+        const indicators = document.querySelectorAll('.indicator');
+        indicators.forEach((indicator, index) => {
+            indicator.classList.toggle('active', index === this.currentLetterIndex);
+        });
+    }
+
+    updateNavigationButtons() {
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        
+        prevBtn.disabled = this.currentLetterIndex === 0;
+        nextBtn.disabled = this.currentLetterIndex === this.totalLetters - 1;
+    }
+
+    handleTouchStart(e) {
+        this.touchStartX = e.changedTouches[0].screenX;
+    }
+
+    handleTouchEnd(e) {
+        this.touchEndX = e.changedTouches[0].screenX;
+        this.handleSwipeGesture();
+    }
+
+    handleMouseDown(e) {
+        this.touchStartX = e.screenX;
+    }
+
+    handleMouseUp(e) {
+        this.touchEndX = e.screenX;
+        this.handleSwipeGesture();
+    }
+
+    handleSwipeGesture() {
+        const swipeThreshold = 50;
+        const diff = this.touchStartX - this.touchEndX;
+        
+        if (Math.abs(diff) > swipeThreshold) {
+            if (diff > 0) {
+                // Swipe left - next letter
+                this.nextLetter();
+            } else {
+                // Swipe right - previous letter
+                this.previousLetter();
+            }
+        }
+    }
+
+
+    changeTheme() {
+        const body = document.body;
+        const currentThemeIndex = this.themes.indexOf(this.currentTheme);
+        const nextThemeIndex = (currentThemeIndex + 1) % this.themes.length;
+        
+        // Remove current theme class
+        if (this.currentTheme !== 'default') {
+            body.classList.remove(this.currentTheme);
+        }
+        
+        // Add new theme class
+        this.currentTheme = this.themes[nextThemeIndex];
+        if (this.currentTheme !== 'default') {
+            body.classList.add(this.currentTheme);
+        }
+        
+        // Update button text
+        const themeBtn = document.getElementById('themeBtn');
+        const themeNames = {
+            'default': 'Change Theme',
+            'dark-theme': 'Dark Theme',
+            'ocean-theme': 'Ocean Theme',
+            'forest-theme': 'Forest Theme'
+        };
+        themeBtn.textContent = themeNames[this.currentTheme];
+    }
+
+    showNotification(message) {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = 'notification';
+        notification.textContent = message;
+        
+        // Style the notification
+        notification.style.position = 'fixed';
+        notification.style.bottom = '20px';
+        notification.style.left = '50%';
+        notification.style.transform = 'translateX(-50%)';
+        notification.style.background = 'rgba(0, 0, 0, 0.8)';
+        notification.style.color = 'white';
+        notification.style.padding = '12px 24px';
+        notification.style.borderRadius = '30px';
+        notification.style.zIndex = '1000';
+        notification.style.fontSize = '14px';
+        notification.style.opacity = '0';
+        notification.style.transition = 'opacity 0.3s ease';
+        
+        // Add to DOM
+        document.body.appendChild(notification);
+        
+        // Fade in
+        setTimeout(() => {
+            notification.style.opacity = '1';
+        }, 10);
+        
+        // Remove after 3 seconds
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            setTimeout(() => {
+                document.body.removeChild(notification);
+            }, 300);
+        }, 3000);
+    }
+
 }
 
-// Fungsi untuk membuat love-love kecil yang mengitari
-function createSmallHearts() {
-    const heartCount = 24; // Jumlah love kecil (ditingkatkan dari 12 menjadi 24)
-    
-    for (let i = 0; i < heartCount; i++) {
-        // Buat bentuk love kecil
-        const smallHeartShape = new THREE.Shape();
-        const x = 0, y = 0;
-        smallHeartShape.moveTo(x + 0.5, y + 0.5);
-        smallHeartShape.bezierCurveTo(x + 0.5, y + 0.5, x + 0.4, y, x, y);
-        smallHeartShape.bezierCurveTo(x - 0.6, y, x - 0.6, y + 0.7, x - 0.6, y + 0.7);
-        smallHeartShape.bezierCurveTo(x - 0.6, y + 1.1, x - 0.3, y + 1.54, x + 0.5, y + 1.9);
-        smallHeartShape.bezierCurveTo(x + 1.2, y + 1.54, x + 1.6, y + 1.1, x + 1.6, y + 0.7);
-        smallHeartShape.bezierCurveTo(x + 1.6, y + 0.7, x + 1.6, y, x + 1, y);
-        smallHeartShape.bezierCurveTo(x + 0.7, y, x + 0.5, y + 0.5, x + 0.5, y + 0.5);
+class Letter {
+    constructor(element, zIndex) {
+        this.element = element;
+        this.holdingLetter = false;
+        this.currentX = 0;
+        this.currentY = 0;
+        this.initialX = 0;
+        this.initialY = 0;
+        this.xOffset = 0;
+        this.yOffset = 0;
+        this.zIndex = zIndex;
         
-        // Extrude shape untuk membuat 3D
-        const extrudeSettings = {
-            depth: 0.15, // Dikurangi dari 0.3 menjadi 0.15
-            bevelEnabled: true,
-            bevelSegments: 2,
-            steps: 2,
-            bevelSize: 0.02, // Dikurangi dari 0.05 menjadi 0.02
-            bevelThickness: 0.02 // Dikurangi dari 0.05 menjadi 0.02
-        };
+        this.init();
+    }
+
+    init() {
+        // Mouse events
+        this.element.addEventListener('mousedown', (e) => this.dragStart(e));
+        document.addEventListener('mousemove', (e) => this.drag(e));
+        document.addEventListener('mouseup', () => this.dragEnd());
         
-        const smallHeartGeometry = new THREE.ExtrudeGeometry(smallHeartShape, extrudeSettings);
+        // Touch events
+        this.element.addEventListener('touchstart', (e) => this.dragStart(e));
+        document.addEventListener('touchmove', (e) => this.drag(e));
+        document.addEventListener('touchend', () => this.dragEnd());
+    }
+
+    dragStart(e) {
+        if (e.type === "touchstart") {
+            this.initialX = e.touches[0].clientX - this.xOffset;
+            this.initialY = e.touches[0].clientY - this.yOffset;
+        } else {
+            this.initialX = e.clientX - this.xOffset;
+            this.initialY = e.clientY - this.yOffset;
+        }
+
+        if (e.target === this.element || this.element.contains(e.target)) {
+            this.holdingLetter = true;
+            this.element.style.zIndex = this.getHighestZ() + 1;
+        }
+    }
+
+    drag(e) {
+        if (this.holdingLetter) {
+            e.preventDefault();
+            
+            if (e.type === "touchmove") {
+                this.currentX = e.touches[0].clientX - this.initialX;
+                this.currentY = e.touches[0].clientY - this.initialY;
+            } else {
+                this.currentX = e.clientX - this.initialX;
+                this.currentY = e.clientY - this.initialY;
+            }
+
+            this.xOffset = this.currentX;
+            this.yOffset = this.currentY;
+
+            this.setTranslate(this.currentX, this.currentY);
+        }
+    }
+
+    dragEnd() {
+        this.initialX = this.currentX;
+        this.initialY = this.currentY;
+        this.holdingLetter = false;
+    }
+
+    setTranslate(xPos, yPos) {
+        // Get the current rotation from the computed style
+        const currentTransform = window.getComputedStyle(this.element).transform;
+        let currentRotation = 0;
         
-        // Material dengan warna pink yang berbeda-beda
-        const randomColorIndex = Math.floor(Math.random() * pinkColors.length);
-        const smallHeartMaterial = new THREE.MeshPhongMaterial({
-            color: pinkColors[randomColorIndex],
-            specular: 0xffffff,
-            shininess: 100,
-            emissive: pinkColors[randomColorIndex],
-            emissiveIntensity: 0.3
+        if (currentTransform !== 'none') {
+            const values = currentTransform.split('(')[1].split(')')[0].split(',');
+            const a = values[0];
+            const b = values[1];
+            currentRotation = Math.atan2(b, a) * (180 / Math.PI);
+        }
+        
+        this.element.style.transform = `translate(${xPos}px, ${yPos}px) rotate(${currentRotation}deg)`;
+    }
+
+    setPosition(x, y) {
+        this.xOffset = x;
+        this.yOffset = y;
+        this.currentX = x;
+        this.currentY = y;
+        this.initialX = x;
+        this.initialY = y;
+        this.setTranslate(x, y);
+    }
+
+    animateToPosition(x, y, rotation = null) {
+        this.xOffset = x;
+        this.yOffset = y;
+        this.currentX = x;
+        this.currentY = y;
+        this.initialX = x;
+        this.initialY = y;
+        
+        if (rotation !== null) {
+            this.element.style.transform = `translate(${x}px, ${y}px) rotate(${rotation}deg)`;
+        } else {
+            this.setTranslate(x, y);
+        }
+    }
+
+    getHighestZ() {
+        const letters = document.querySelectorAll('.letter');
+        let highest = 0;
+        
+        letters.forEach(letter => {
+            const zIndex = parseInt(window.getComputedStyle(letter).zIndex) || 0;
+            if (zIndex > highest) {
+                highest = zIndex;
+            }
         });
         
-        // Buat mesh
-        const smallHeart = new THREE.Mesh(smallHeartGeometry, smallHeartMaterial);
-        
-        // Skala agar lebih kecil (dari 0.15-0.25 menjadi 0.05-0.1)
-        const scale = 0.05 + Math.random() * 0.05; // Ukuran bervariasi tapi lebih kecil
-        smallHeart.scale.set(scale, scale, scale);
-        
-        // Posisikan dalam lingkaran mengelilingi love utama
-        const angle = (i / heartCount) * Math.PI * 2;
-        const radius = 2.2 + Math.random() * 0.8; // Jarak bervariasi
-        const height = (Math.random() - 0.5) * 2.5; // Ketinggian bervariasi
-        
-        smallHeart.position.x = Math.cos(angle) * radius;
-        smallHeart.position.y = height;
-        smallHeart.position.z = Math.sin(angle) * radius;
-        
-        // Rotasi awal yang menghadap ke tengah
-        smallHeart.rotation.y = -angle + Math.PI;
-        smallHeart.rotation.x = Math.PI;
-        
-        // Simpan properti untuk animasi
-        smallHeart.userData = {
-            angle: angle,
-            radius: radius,
-            height: height,
-            rotationSpeed: 0.01 + Math.random() * 0.02,
-            floatSpeed: 0.001 + Math.random() * 0.002,
-            floatAmount: 0.1 + Math.random() * 0.2
-        };
-        
-        // Tambahkan ke scene
-        scene.add(smallHeart);
-        
-        // Simpan dalam array
-        smallHearts.push(smallHeart);
+        return highest;
     }
 }
 
-// Fungsi animasi
-function animate() {
-    requestAnimationFrame(animate);
-    
-    if (!isPaused && heart) {
-        // Rotasi love shape
-        heart.rotation.x += 0.005;
-        heart.rotation.y += 0.01;
-        
-        // Animasi floating
-        heart.position.y = Math.sin(Date.now() * 0.001) * 0.2;
-        
-        // Animasi pulsing
-        const scale = 1 + Math.sin(Date.now() * 0.002) * 0.05;
-        heart.scale.set(scale, scale, scale);
-        
-        // Animasi partikel
-        if (heart.particles) {
-            heart.particles.rotation.y += 0.002;
-            
-            const positions = heart.particles.geometry.attributes.position.array;
-            for (let i = 0; i < positions.length; i += 3) {
-                positions[i + 1] = Math.sin(Date.now() * 0.001 + positions[i]) * 0.1;
+// Initialize the application when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    new ModernLoveMessage();
+});
+
+// Add some extra interactive features
+document.addEventListener('DOMContentLoaded', () => {
+    // Add click effect to letters
+    const letters = document.querySelectorAll('.letter');
+    letters.forEach(letter => {
+        letter.addEventListener('click', function(e) {
+            if (!this.classList.contains('dragging')) {
+                // Create ripple effect
+                const ripple = document.createElement('div');
+                ripple.className = 'ripple';
+                
+                const rect = this.getBoundingClientRect();
+                const size = Math.max(rect.width, rect.height);
+                const x = e.clientX - rect.left - size / 2;
+                const y = e.clientY - rect.top - size / 2;
+                
+                ripple.style.width = ripple.style.height = size + 'px';
+                ripple.style.left = x + 'px';
+                ripple.style.top = y + 'px';
+                
+                this.appendChild(ripple);
+                
+                setTimeout(() => {
+                    ripple.remove();
+                }, 600);
             }
-            heart.particles.geometry.attributes.position.needsUpdate = true;
-        }
-        
-        // Animasi love-love kecil
-        animateSmallHearts();
-    }
-    
-    renderer.render(scene, camera);
-}
-
-// Fungsi untuk handle window resize
-function onWindowResize() {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-}
-
-// Variabel untuk mouse interaction
-let mouseX = 0;
-let mouseY = 0;
-let targetX = 0;
-let targetY = 0;
-
-// Fungsi untuk handle mouse movement
-function onMouseMove(event) {
-    mouseX = (event.clientX - window.innerWidth / 2) / (window.innerWidth / 2);
-    mouseY = (event.clientY - window.innerHeight / 2) / (window.innerHeight / 2);
-    
-    targetX = mouseX * 0.5;
-    targetY = mouseY * 0.5;
-    
-    if (heart && !isPaused) {
-        heart.rotation.y += targetX * 0.05;
-        heart.rotation.x += targetY * 0.05;
-    }
-}
-
-// Fungsi untuk handle mouse wheel (zoom)
-function onMouseWheel(event) {
-    event.preventDefault();
-    
-    const zoomSpeed = 0.1;
-    if (event.deltaY < 0) {
-        camera.position.z += zoomSpeed;
-    } else {
-        camera.position.z -= zoomSpeed;
-    }
-    
-    // Batasi zoom
-    camera.position.z = Math.max(2, Math.min(10, camera.position.z));
-}
-
-// Fungsi untuk toggle pause
-function togglePause() {
-    isPaused = !isPaused;
-    document.getElementById('pauseBtn').textContent = isPaused ? 'Resume Animasi' : 'Pause Animasi';
-}
-
-// Fungsi untuk reset posisi
-function resetPosition() {
-    camera.position.set(0, 0, 5);
-    if (heart) {
-        heart.rotation.set(Math.PI, 0, 0); // Reset dengan rotasi yang benar
-        heart.position.set(0, 0, 0);
-        heart.scale.set(1, 1, 1);
-    }
-}
-
-// Variabel untuk touch interaction
-let touchStartX = 0;
-let touchStartY = 0;
-let touchStartDistance = 0;
-let isTouching = false;
-
-// Fungsi untuk handle touch start
-function onTouchStart(event) {
-    event.preventDefault();
-    isTouching = true;
-    
-    if (event.touches.length === 1) {
-        // Single touch untuk rotasi
-        touchStartX = event.touches[0].clientX;
-        touchStartY = event.touches[0].clientY;
-    } else if (event.touches.length === 2) {
-        // Two touch untuk zoom
-        const dx = event.touches[0].clientX - event.touches[1].clientX;
-        const dy = event.touches[0].clientY - event.touches[1].clientY;
-        touchStartDistance = Math.sqrt(dx * dx + dy * dy);
-    }
-}
-
-// Fungsi untuk handle touch move
-function onTouchMove(event) {
-    event.preventDefault();
-    
-    if (!isTouching || !heart) return;
-    
-    if (event.touches.length === 1) {
-        // Single touch untuk rotasi
-        const touchX = event.touches[0].clientX;
-        const touchY = event.touches[0].clientY;
-        
-        const deltaX = touchX - touchStartX;
-        const deltaY = touchY - touchStartY;
-        
-        // Rotasi berdasarkan pergerakan touch
-        heart.rotation.y += deltaX * 0.01;
-        heart.rotation.x += deltaY * 0.01;
-        
-        touchStartX = touchX;
-        touchStartY = touchY;
-    } else if (event.touches.length === 2) {
-        // Two touch untuk zoom
-        const dx = event.touches[0].clientX - event.touches[1].clientX;
-        const dy = event.touches[0].clientY - event.touches[1].clientY;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        // Zoom berdasarkan perubahan jarak
-        const zoomSpeed = 0.01;
-        const zoomDelta = (distance - touchStartDistance) * zoomSpeed;
-        
-        camera.position.z = Math.max(2, Math.min(10, camera.position.z - zoomDelta));
-        
-        touchStartDistance = distance;
-    }
-}
-
-// Fungsi untuk handle touch end
-function onTouchEnd(event) {
-    isTouching = false;
-}
-
-// Fungsi untuk menganimasikan love-love kecil
-function animateSmallHearts() {
-    const time = Date.now() * 0.001;
-    
-    smallHearts.forEach((smallHeart, index) => {
-        const userData = smallHeart.userData;
-        
-        // Rotasi mengelilingi love utama
-        userData.angle += userData.rotationSpeed;
-        
-        // Posisi melingkar dengan floating
-        smallHeart.position.x = Math.cos(userData.angle) * userData.radius;
-        smallHeart.position.z = Math.sin(userData.angle) * userData.radius;
-        smallHeart.position.y = userData.height + Math.sin(time * userData.floatSpeed + index) * userData.floatAmount;
-        
-        // Rotasi love kecil
-        smallHeart.rotation.y += 0.02;
-        smallHeart.rotation.x = Math.PI + Math.sin(time * 0.001 + index) * 0.1;
-        
-        // Selalu menghadap ke love utama
-        smallHeart.lookAt(0, 0, 0);
+        });
     });
-}
-
-// Fungsi untuk mengubah warna
-function changeColor() {
-    colorIndex = (colorIndex + 1) % pinkColors.length;
     
-    if (heart) {
-        heart.material.color.set(pinkColors[colorIndex]);
-        heart.material.emissive.set(pinkColors[colorIndex]);
-        
-        if (heart.particles) {
-            heart.particles.material.color.set(pinkColors[colorIndex]);
-        }
-    }
-    
-    // Ubah warna love-love kecil juga
-    smallHearts.forEach(smallHeart => {
-        const randomColorIndex = Math.floor(Math.random() * pinkColors.length);
-        smallHeart.material.color.set(pinkColors[randomColorIndex]);
-        smallHeart.material.emissive.set(pinkColors[randomColorIndex]);
+    // Add double-click to maximize/minimize photos
+    const photoLetters = document.querySelectorAll('.photo-letter');
+    photoLetters.forEach(letter => {
+        letter.addEventListener('dblclick', function() {
+            this.classList.toggle('maximized');
+        });
     });
-}
-
-// Jalankan inisialisasi saat halaman dimuat
-window.addEventListener('load', init);
+});
